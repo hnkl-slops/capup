@@ -7,6 +7,7 @@ use std::sync::Mutex;
 
 use tauri::{
     App, AppHandle, Manager, RunEvent, State, WebviewWindow, WindowEvent,
+    image::Image,
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
@@ -52,6 +53,13 @@ fn stop_recording(window: WebviewWindow, state: State<RecorderState>) -> Result<
     recorder.finish()
 }
 
+// macOS recolors a template icon to match the menu bar.
+#[cfg(target_os = "macos")]
+const TRAY_ICON: &[u8] = include_bytes!("../icons/tray-template.png");
+// Windows does not recolor tray icons, and its taskbar is dark by default.
+#[cfg(not(target_os = "macos"))]
+const TRAY_ICON: &[u8] = include_bytes!("../icons/tray-white.png");
+
 /// Puts the app in the menu bar or system tray, where a click opens the window.
 fn setup_tray(app: &mut App) -> tauri::Result<()> {
     // The app lives in the menu bar, so it has no Dock icon.
@@ -62,11 +70,8 @@ fn setup_tray(app: &mut App) -> tauri::Result<()> {
         MenuItem::with_id(app, "save_dir", "Choose Save Folder…", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit capup", true, None::<&str>)?;
     TrayIconBuilder::new()
-        .icon(
-            app.default_window_icon()
-                .cloned()
-                .expect("the bundle has an icon"),
-        )
+        .icon(Image::from_bytes(TRAY_ICON)?)
+        .icon_as_template(cfg!(target_os = "macos"))
         .tooltip("capup")
         .menu(&Menu::with_items(app, &[&choose_save_dir, &quit])?)
         .show_menu_on_left_click(false)
