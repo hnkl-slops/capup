@@ -25,6 +25,13 @@ It runs on macOS and Windows as a menu bar / system tray app.
 On macOS, capup needs the **Screen & System Audio Recording** permission.
 Grant it in System Settings › Privacy & Security, then restart capup.
 
+## Install
+
+Download the latest build from [Releases](https://github.com/hnkl-slops/capup/releases/latest).
+
+capup is not signed with an Apple Developer ID or a Windows code signing certificate.
+The release notes explain how to open it anyway.
+
 ## Usage
 
 1. Click the capup icon in the menu bar or system tray to open the window.
@@ -82,6 +89,20 @@ pnpm tauri build
 ```
 
 On macOS, the screen recording permission in development mode is granted to the terminal app that runs `pnpm tauri dev`.
+
+### Releasing
+
+1. Bump `version` in `src-tauri/Cargo.toml`. The app takes its version from there.
+2. Commit, then push a tag that matches the version:
+
+   ```bash
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+
+The [Release workflow](.github/workflows/release.yml) builds a universal macOS app and a Windows installer, and publishes them as a GitHub release.
+The release text comes from [.github/release-notes.md](.github/release-notes.md).
+The workflow stops if the tag does not match the version.
 
 ### Project layout
 

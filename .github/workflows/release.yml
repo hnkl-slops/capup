@@ -1,0 +1,89 @@
+name: Release
+
+# Pushing a tag such as v0.1.0 builds capup for macOS and Windows and publishes a GitHub release.
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release-id: ${{ steps.create.outputs.release-id }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # The bundles take their version from Cargo.toml, so a tag that disagrees would mislabel the release.
+      - name: Check that the tag matches the app version
+        run: |
+          version=$(grep -m1 '^version = ' src-tauri/Cargo.toml | cut -d '"' -f2)
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match version ${version} in src-tauri/Cargo.toml"
+            exit 1
+          fi
+
+      # The builds run in parallel, so the release is created once up front for all of them to upload to.
+      - name: Create a draft release
+        id: create
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" --draft --verify-tag \
+            --title "capup ${GITHUB_REF_NAME}" --notes-file .github/release-notes.md
+          echo "release-id=$(gh api "repos/${GITHUB_REPOSITORY}/releases" \
+            --jq ".[] | select(.tag_name == \"${GITHUB_REF_NAME}\") | .id")" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target universal-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - platform: windows-latest
+            args: ""
+            rust-targets: ""
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release-id }}
+          args: ${{ matrix.args }}
+
+  publish-release:
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${{ needs.create-release.outputs.release-id }}" -F draft=false
