@@ -88,6 +88,15 @@ Build an installable app:
 pnpm tauri build
 ```
 
+The app icons in `src-tauri/icons/` are generated from `app-icon.png`:
+
+```bash
+pnpm tauri icon app-icon.png
+```
+
+This also writes Microsoft Store, Android, and iOS icons.
+capup does not use them, so delete them.
+
 On macOS, the screen recording permission in development mode is granted to the terminal app that runs `pnpm tauri dev`.
 
 ### Releasing
