@@ -27,15 +27,19 @@ jobs:
           fi
 
       # The builds run in parallel, so the release is created once up front for all of them to upload to.
+      # The id is taken from the create response because a new draft may not show up in the release list yet.
       - name: Create a draft release
         id: create
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${GITHUB_REF_NAME}" --draft --verify-tag \
-            --title "capup ${GITHUB_REF_NAME}" --notes-file .github/release-notes.md
-          echo "release-id=$(gh api "repos/${GITHUB_REPOSITORY}/releases" \
-            --jq ".[] | select(.tag_name == \"${GITHUB_REF_NAME}\") | .id")" >> "$GITHUB_OUTPUT"
+          release_id=$(gh api --method POST "repos/${GITHUB_REPOSITORY}/releases" \
+            -f tag_name="${GITHUB_REF_NAME}" \
+            -f name="capup ${GITHUB_REF_NAME}" \
+            -F body=@.github/release-notes.md \
+            -F draft=true \
+            --jq .id)
+          echo "release-id=${release_id}" >> "$GITHUB_OUTPUT"
 
   build:
     needs: create-release
