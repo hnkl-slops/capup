@@ -1,6 +1,6 @@
 [package]
 name = "capup"
-version = "0.1.0"
+version = "0.1.1"
 description = "Records what is behind a translucent window to mp4"
 edition = "2024"
 
